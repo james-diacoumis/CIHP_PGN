@@ -61,7 +61,7 @@ class Network(object):
         for op_name in data_dict:
             for param_name, data in data_dict[op_name].iteritems():
                 try:
-                    var = tf.get_variable(param_name)
+                    var = tf.Variable(param_name)
                     session.run(var.assign(data))
                 except ValueError:
                     if not ignore_missing:
@@ -95,15 +95,15 @@ class Network(object):
 
     def make_var(self, name, shape):
         '''Creates a new TensorFlow variable.'''
-        return tf.get_variable(name, shape, trainable=self.trainable)
+        return tf.Variable(name, shape, trainable=self.trainable)
 
     def make_w_var(self, name, shape):
         '''Creates a new TensorFlow variable.'''
         stddev=0.01
-        return tf.get_variable(name, shape, initializer=tf.truncated_normal_initializer(stddev=stddev), trainable=self.trainable)
+        return tf.Variable(name, shape, initializer=tf.truncated_normal_initializer(stddev=stddev), trainable=self.trainable)
 
     def make_b_var(self, name, shape):
-        return tf.get_variable(name, shape, initializer=tf.constant_initializer(0.0), trainable=self.trainable)
+        return tf.Variable(name, shape, initializer=tf.constant_initializer(0.0), trainable=self.trainable)
 
     def validate_padding(self, padding):
         '''Verifies that the padding is one of the supported ones.'''
