@@ -100,7 +100,7 @@ class Network(object):
     def make_w_var(self, name, shape):
         '''Creates a new TensorFlow variable.'''
         stddev=0.01
-        return tf.Variable(name, shape, initializer=tf.truncated_normal_initializer(stddev=stddev), trainable=self.trainable)
+        return tf.Variable(name, shape, initializer=tf.random.truncated_normal_initializer(stddev=stddev), trainable=self.trainable)
 
     def make_b_var(self, name, shape):
         return tf.Variable(name, shape, initializer=tf.constant_initializer(0.0), trainable=self.trainable)
