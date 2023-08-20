@@ -59,14 +59,13 @@ class Network(object):
         '''
         data_dict = np.load(data_path).item()
         for op_name in data_dict:
-            with tf.variable_scope(op_name, reuse=True):
-                for param_name, data in data_dict[op_name].iteritems():
-                    try:
-                        var = tf.get_variable(param_name)
-                        session.run(var.assign(data))
-                    except ValueError:
-                        if not ignore_missing:
-                            raise
+            for param_name, data in data_dict[op_name].iteritems():
+                try:
+                    var = tf.get_variable(param_name)
+                    session.run(var.assign(data))
+                except ValueError:
+                    if not ignore_missing:
+                        raise
 
     def feed(self, *args):
         '''Set the input(s) for the next operation by replacing the terminal nodes.
@@ -132,26 +131,26 @@ class Network(object):
         assert c_o % group == 0
         # Convolution for a given input and kernel
         convolve = lambda i, k: tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
-        with tf.variable_scope(name) as scope:
-            kernel = self.make_w_var('weights', shape=[k_h, k_w, c_i // group, c_o])
-            if group == 1:
-                # This is the common-case. Convolve the input without any further complications.
-                output = convolve(input, kernel)
-            else:
-                # Split the input into groups and then convolve each of them independently
-                input_groups = tf.split(3, group, input)
-                kernel_groups = tf.split(3, group, kernel)
-                output_groups = [convolve(i, k) for i, k in zip(input_groups, kernel_groups)]
-                # Concatenate the groups
-                output = tf.concat(3, output_groups)
-            # Add the biases
-            if biased:
-                biases = self.make_b_var('biases', [c_o])
-                output = tf.nn.bias_add(output, biases)
-            if relu:
-                # ReLU non-linearity
-                output = tf.nn.relu(output, name=scope.name)
-            return output
+
+        kernel = self.make_w_var('weights', shape=[k_h, k_w, c_i // group, c_o])
+        if group == 1:
+            # This is the common-case. Convolve the input without any further complications.
+            output = convolve(input, kernel)
+        else:
+            # Split the input into groups and then convolve each of them independently
+            input_groups = tf.split(3, group, input)
+            kernel_groups = tf.split(3, group, kernel)
+            output_groups = [convolve(i, k) for i, k in zip(input_groups, kernel_groups)]
+            # Concatenate the groups
+            output = tf.concat(3, output_groups)
+        # Add the biases
+        if biased:
+            biases = self.make_b_var('biases', [c_o])
+            output = tf.nn.bias_add(output, biases)
+        if relu:
+            # ReLU non-linearity
+            output = tf.nn.relu(output, name=scope.name)
+        return output
 
     @layer
     def atrous_conv(self,
@@ -174,26 +173,26 @@ class Network(object):
         assert c_o % group == 0
         # Convolution for a given input and kernel
         convolve = lambda i, k: tf.nn.atrous_conv2d(i, k, dilation, padding=padding)
-        with tf.variable_scope(name) as scope:
-            kernel = self.make_w_var('weights', shape=[k_h, k_w, c_i // group, c_o])
-            if group == 1:
-                # This is the common-case. Convolve the input without any further complications.
-                output = convolve(input, kernel)
-            else:
-                # Split the input into groups and then convolve each of them independently
-                input_groups = tf.split(3, group, input)
-                kernel_groups = tf.split(3, group, kernel)
-                output_groups = [convolve(i, k) for i, k in zip(input_groups, kernel_groups)]
-                # Concatenate the groups
-                output = tf.concat(3, output_groups)
-            # Add the biases
-            if biased:
-                biases = self.make_b_var('biases', [c_o])
-                output = tf.nn.bias_add(output, biases)
-            if relu:
-                # ReLU non-linearity
-                output = tf.nn.relu(output, name=scope.name)
-            return output
+
+        kernel = self.make_w_var('weights', shape=[k_h, k_w, c_i // group, c_o])
+        if group == 1:
+            # This is the common-case. Convolve the input without any further complications.
+            output = convolve(input, kernel)
+        else:
+            # Split the input into groups and then convolve each of them independently
+            input_groups = tf.split(3, group, input)
+            kernel_groups = tf.split(3, group, kernel)
+            output_groups = [convolve(i, k) for i, k in zip(input_groups, kernel_groups)]
+            # Concatenate the groups
+            output = tf.concat(3, output_groups)
+        # Add the biases
+        if biased:
+            biases = self.make_b_var('biases', [c_o])
+            output = tf.nn.bias_add(output, biases)
+        if relu:
+            # ReLU non-linearity
+            output = tf.nn.relu(output, name=scope.name)
+        return output
         
     @layer
     def relu(self, input, name):
@@ -236,21 +235,20 @@ class Network(object):
 
     @layer
     def fc(self, input, num_out, name, relu=True):
-        with tf.variable_scope(name) as scope:
-            input_shape = input.get_shape()
-            if input_shape.ndims == 4:
-                # The input is spatial. Vectorize it first.
-                dim = 1
-                for d in input_shape[1:].as_list():
-                    dim *= d
-                feed_in = tf.reshape(input, [-1, dim])
-            else:
-                feed_in, dim = (input, input_shape[-1].value)
-            weights = self.make_var('weights', shape=[dim, num_out])
-            biases = self.make_var('biases', [num_out])
-            op = tf.nn.relu_layer if relu else tf.nn.xw_plus_b
-            fc = op(feed_in, weights, biases, name=scope.name)
-            return fc
+        input_shape = input.get_shape()
+        if input_shape.ndims == 4:
+            # The input is spatial. Vectorize it first.
+            dim = 1
+            for d in input_shape[1:].as_list():
+                dim *= d
+            feed_in = tf.reshape(input, [-1, dim])
+        else:
+            feed_in, dim = (input, input_shape[-1].value)
+        weights = self.make_var('weights', shape=[dim, num_out])
+        biases = self.make_var('biases', [num_out])
+        op = tf.nn.relu_layer if relu else tf.nn.xw_plus_b
+        fc = op(feed_in, weights, biases, name=scope.name)
+        return fc
 
     @layer
     def softmax(self, input, name):
@@ -267,15 +265,14 @@ class Network(object):
         
     @layer
     def batch_normalization(self, input, name, is_training, activation_fn=None, scale=True):
-        with tf.variable_scope(name) as scope:
-            output = slim.batch_norm(
-                input,
-                activation_fn=activation_fn,
-                is_training=is_training,
-                updates_collections=None,
-                scale=scale,
-                scope=scope)
-            return output
+        output = slim.batch_norm(
+            input,
+            activation_fn=activation_fn,
+            is_training=is_training,
+            updates_collections=None,
+            scale=scale,
+            scope=scope)
+        return output
 
     @layer
     def dropout(self, input, keep_prob, name):
@@ -284,20 +281,18 @@ class Network(object):
 
     @layer
     def upsample(self, input, size_h, size_w, name):
-        with tf.variable_scope(name) as scope:
-            return tf.image.resize_images(input, size=[size_h, size_w])
+        return tf.image.resize_images(input, size=[size_h, size_w])
 
     @layer
     def pyramid_pooling(self, input, o_c, pool_size, name):
-        with tf.variable_scope(name) as scope:
-            dims = tf.shape(input)
-            out_height, out_width = dims[1], dims[2]
-            pool_ly = tf.nn.avg_pool(input, ksize=[1, pool_size, pool_size, 1], strides=[1, pool_size, pool_size, 1],
-                                     padding=DEFAULT_PADDING, name='pool_ly')
-            weight = self.make_w_var('weights', shape=[3, 3, pool_ly.get_shape()[-1], o_c])
-            biases = self.make_var('biases', o_c)
-            conv_ly = tf.nn.conv2d(pool_ly, weight, strides=[1, 1, 1, 1], padding='SAME', name='conv_ly')
-            conv_ly = tf.nn.bias_add(conv_ly, biases)
-            conv_ly = tf.nn.relu(conv_ly, name='relu_ly')
-            output = tf.image.resize_bilinear(conv_ly, [out_height, out_width])
-            return output
+        dims = tf.shape(input)
+        out_height, out_width = dims[1], dims[2]
+        pool_ly = tf.nn.avg_pool(input, ksize=[1, pool_size, pool_size, 1], strides=[1, pool_size, pool_size, 1],
+                                 padding=DEFAULT_PADDING, name='pool_ly')
+        weight = self.make_w_var('weights', shape=[3, 3, pool_ly.get_shape()[-1], o_c])
+        biases = self.make_var('biases', o_c)
+        conv_ly = tf.nn.conv2d(pool_ly, weight, strides=[1, 1, 1, 1], padding='SAME', name='conv_ly')
+        conv_ly = tf.nn.bias_add(conv_ly, biases)
+        conv_ly = tf.nn.relu(conv_ly, name='relu_ly')
+        output = tf.image.resize_bilinear(conv_ly, [out_height, out_width])
+        return output
