@@ -100,10 +100,10 @@ class Network(object):
     def make_w_var(self, name, shape):
         '''Creates a new TensorFlow variable.'''
         stddev=0.01
-        return tf.Variable(name, shape, initializer=tf.random_normal_initializer(stddev=stddev), trainable=self.trainable)
+        return tf.Variable(name, shape)
 
     def make_b_var(self, name, shape):
-        return tf.Variable(name, shape, initializer=tf.constant_initializer(0.0), trainable=self.trainable)
+        return tf.Variable(name, shape)
 
     def validate_padding(self, padding):
         '''Verifies that the padding is one of the supported ones.'''
